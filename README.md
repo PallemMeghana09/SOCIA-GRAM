@@ -1,6 +1,7 @@
 # Socia Gram — Secure Civic & Public Transportation Portal
 
 Socia Gram is a secure, digital civic portal tailored for rural village governance. The platform empowers villagers to directly voice community challenges—such as infrastructure deterioration, sanitation lapses, water issues, and poor transport connectivity—while providing local government secretariats with a reliable admin dashboard to track, prioritize, and resolve complaints efficiently.
+<img width="740" height="650" alt="image" src="https://github.com/user-attachments/assets/ee932d5c-c6a6-4fbf-871f-7247382aca44" />
 
 Developed by **P.Meghana**, this application is engineered to bridge communication gaps, accelerate civic resolution times, and elevate rural connectivity.
 
