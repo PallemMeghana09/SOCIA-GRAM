@@ -1,0 +1,6 @@
+{
+  "name": "Socia Gram",
+  "description": "A civic issue reporting platform for villagers to submit infrastructure and public service complaints directly to local authorities.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

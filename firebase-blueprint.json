@@ -1,0 +1,89 @@
+{
+  "entities": {
+    "Issue": {
+      "title": "Issue",
+      "description": "A public infrastructure or civic issue reported by a citizen.",
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "Road Damage",
+            "Garbage & Waste",
+            "Drainage/Sewage",
+            "Water Supply",
+            "School/Public Building",
+            "Streetlight/Electricity",
+            "Other"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "photoUrl": {
+          "type": "string",
+          "maxLength": 300000
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "landmarkNote": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "reporterName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "reporterPhone": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "Submitted",
+            "In Progress",
+            "Resolved"
+          ]
+        },
+        "resolutionNote": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "submittedByUid": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "category",
+        "description",
+        "photoUrl",
+        "latitude",
+        "longitude",
+        "status",
+        "submittedByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/issues/{issueId}": {
+      "schema": "Issue",
+      "description": "Collection of all public/civic issue reports."
+    }
+  }
+}

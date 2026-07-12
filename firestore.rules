@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidIssue(data) {
+      return data.category is string &&
+             data.category in ['Road Damage', 'Garbage & Waste', 'Drainage/Sewage', 'Water Supply', 'School/Public Building', 'Streetlight/Electricity', 'Other'] &&
+             data.description is string &&
+             data.description.size() <= 1000 &&
+             data.photoUrl is string &&
+             data.photoUrl.size() <= 500000 &&
+             data.latitude is number &&
+             data.longitude is number &&
+             data.status is string &&
+             data.status in ['Submitted', 'In Progress', 'Resolved'] &&
+             data.submittedByUid is string &&
+             data.submittedByUid.size() <= 128 &&
+             (!('landmarkNote' in data) || (data.landmarkNote is string && data.landmarkNote.size() <= 500)) &&
+             (!('reporterName' in data) || (data.reporterName is string && data.reporterName.size() <= 100)) &&
+             (!('reporterPhone' in data) || (data.reporterPhone is string && data.reporterPhone.size() <= 20)) &&
+             (!('resolutionNote' in data) || (data.resolutionNote is string && data.resolutionNote.size() <= 1000)) &&
+             (!('resolutionPhotoUrl' in data) || (data.resolutionPhotoUrl is string && data.resolutionPhotoUrl.size() <= 500000));
+    }
+
+    // Collection rules
+    match /issues/{issueId} {
+      allow get, list: if isSignedIn();
+      
+      allow create: if isSignedIn() && 
+                    isValidId(issueId) && 
+                    isValidIssue(incoming()) && 
+                    incoming().submittedByUid == request.auth.uid && 
+                    incoming().createdAt is timestamp && 
+                    incoming().updatedAt is timestamp;
+                    
+      allow update: if isSignedIn() && 
+                    isValidId(issueId) && 
+                    isValidIssue(incoming()) && 
+                    incoming().updatedAt is timestamp &&
+                    incoming().category == existing().category &&
+                    incoming().description == existing().description &&
+                    incoming().photoUrl == existing().photoUrl &&
+                    incoming().latitude == existing().latitude &&
+                    incoming().longitude == existing().longitude &&
+                    incoming().submittedByUid == existing().submittedByUid &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolutionNote', 'resolutionPhotoUrl', 'updatedAt']);
+    }
+  }
+}
