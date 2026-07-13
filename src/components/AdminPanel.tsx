@@ -38,6 +38,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ issues, language }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
+  const [adminVillageQuery, setAdminVillageQuery] = useState('');
+  const [adminCityQuery, setAdminCityQuery] = useState('');
 
   const HARDCODED_PIN = '6925';
 
@@ -73,9 +75,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ issues, language }) => {
         const reporterMatch = issue.reporterName?.toLowerCase().includes(query) || false;
         const aadhaarMatch = issue.aadhaarNumber?.toLowerCase().includes(query) || false;
         const villageMatch = issue.villageName?.toLowerCase().includes(query) || false;
+        const cityMatch = issue.cityName?.toLowerCase().includes(query) || false;
         const pinMatch = issue.pinCode?.toLowerCase().includes(query) || false;
         const idMatch = issue.id.toLowerCase().includes(query);
-        return descMatch || landmarkMatch || reporterMatch || aadhaarMatch || villageMatch || pinMatch || idMatch;
+        return descMatch || landmarkMatch || reporterMatch || aadhaarMatch || villageMatch || cityMatch || pinMatch || idMatch;
+      }
+
+      // Village specific filter (only evaluated if not empty)
+      if (adminVillageQuery.trim()) {
+        const villageMatch = issue.villageName?.toLowerCase().includes(adminVillageQuery.toLowerCase().trim()) || false;
+        if (!villageMatch) return false;
+      }
+
+      // City specific filter (only evaluated if not empty)
+      if (adminCityQuery.trim()) {
+        const cityMatch = issue.cityName?.toLowerCase().includes(adminCityQuery.toLowerCase().trim()) || false;
+        if (!cityMatch) return false;
       }
       
       return true;
@@ -238,6 +253,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ issues, language }) => {
             </select>
           </div>
         </div>
+
+        {/* Dedicated Village Name and City Name Search for Transportation Requests */}
+        {(selectedCategory === 'All' || selectedCategory === 'Transportation Request') && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-4 border-t-2 border-slate-100" id="admin-transportation-filters">
+            <div className="space-y-1.5" id="admin-village-filter">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                {t.filterByVillage}
+              </label>
+              <input
+                type="text"
+                placeholder={t.villageNamePlaceholder}
+                value={adminVillageQuery}
+                onChange={(e) => setAdminVillageQuery(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-800 transition-colors placeholder-slate-400"
+                id="admin-village-search-input"
+              />
+            </div>
+            <div className="space-y-1.5" id="admin-city-filter">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                {t.filterByCity}
+              </label>
+              <input
+                type="text"
+                placeholder={t.cityNamePlaceholder}
+                value={adminCityQuery}
+                onChange={(e) => setAdminCityQuery(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-800 transition-colors placeholder-slate-400"
+                id="admin-city-search-input"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Clear/Reset Admin Filters Button */}
+        {(searchQuery || selectedCategory !== 'All' || selectedStatus !== 'All' || adminVillageQuery || adminCityQuery) && (
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px] font-bold text-slate-400" id="admin-filter-active-indicator">
+            <span>FILTERS ACTIVE: {filteredIssues.length} MATCHING COMPLAINTS FOUND</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('All');
+                setSelectedStatus('All');
+                setAdminVillageQuery('');
+                setAdminCityQuery('');
+              }}
+              className="text-red-600 hover:text-red-700 font-black uppercase hover:underline flex items-center gap-1 cursor-pointer"
+              id="btn-admin-clear-filters"
+            >
+              Reset All Filters
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Grid of issues */}

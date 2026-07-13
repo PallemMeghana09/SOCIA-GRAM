@@ -21,6 +21,7 @@ import { CitizenForm } from './components/CitizenForm';
 import { IssueCard } from './components/IssueCard';
 import { AdminPanel } from './components/AdminPanel';
 import { SplashScreen } from './components/SplashScreen';
+import { InteractiveLogo } from './components/InteractiveLogo';
 import { 
   Activity, 
   ClipboardList, 
@@ -54,6 +55,8 @@ export default function App() {
   // Search & filter states for the public feed
   const [publicSearchQuery, setPublicSearchQuery] = useState<string>('');
   const [publicCategoryFilter, setPublicCategoryFilter] = useState<string>('');
+  const [publicVillageQuery, setPublicVillageQuery] = useState<string>('');
+  const [publicCityQuery, setPublicCityQuery] = useState<string>('');
 
   const t = translations[language];
 
@@ -113,18 +116,31 @@ export default function App() {
 
   // Filter public issues based on search & category
   const filteredPublicIssues = issues.filter(issue => {
+    // Only show that person's problems, not all problems
+    if (issue.submittedByUid !== uid) return false;
+
     // Category match
     const matchesCategory = !publicCategoryFilter || issue.category === publicCategoryFilter;
     
-    // Keyword match (supports description, landmark, category, and ID)
+    // Keyword match (supports description, landmark, category, villageName, cityName, and ID)
     const keyword = publicSearchQuery.trim().toLowerCase();
     const matchesKeyword = !keyword || 
       issue.description.toLowerCase().includes(keyword) || 
       (issue.landmarkNote && issue.landmarkNote.toLowerCase().includes(keyword)) ||
+      (issue.villageName && issue.villageName.toLowerCase().includes(keyword)) ||
+      (issue.cityName && issue.cityName.toLowerCase().includes(keyword)) ||
       issue.category.toLowerCase().includes(keyword) ||
       issue.id.toLowerCase().includes(keyword);
 
-    return matchesCategory && matchesKeyword;
+    // Village specific match (only active when category is Transportation Request)
+    const matchesVillage = !publicVillageQuery.trim() || 
+      (issue.villageName && issue.villageName.toLowerCase().includes(publicVillageQuery.trim().toLowerCase()));
+
+    // City/Town specific match (only active when category is Transportation Request)
+    const matchesCity = !publicCityQuery.trim() || 
+      (issue.cityName && issue.cityName.toLowerCase().includes(publicCityQuery.trim().toLowerCase()));
+
+    return matchesCategory && matchesKeyword && matchesVillage && matchesCity;
   });
 
   if (showSplash) {
@@ -163,9 +179,17 @@ export default function App() {
           <div className="max-w-md w-full bg-white border-2 border-slate-200 rounded-2xl shadow-xl p-8 space-y-8 text-center" id="login-card">
             
             {/* Visual Header / Brand Accent */}
-            <div className="space-y-4" id="login-brand-group">
-              <div className="mx-auto w-16 h-16 bg-emerald-50 text-emerald-900 border-2 border-emerald-200 rounded-full flex items-center justify-center shadow-sm" id="login-brand-icon">
-                <MapPin className="w-7 h-7" />
+            <div className="space-y-6" id="login-brand-group">
+              {/* Premium Logo Container with Soft Light-Green Radial Gradient */}
+              <div className="relative mx-auto w-48 h-48 rounded-full flex items-center justify-center overflow-visible bg-white" id="login-logo-radial-frame">
+                <div 
+                  className="absolute inset-0 rounded-full pointer-events-none z-0 border-2 border-emerald-100/60 shadow-inner" 
+                  style={{
+                    background: "radial-gradient(circle at center, rgba(230,244,234,0.85) 0%, rgba(255,255,255,1) 85%)"
+                  }}
+                  id="login-radial-bg"
+                />
+                <InteractiveLogo size="lg" className="z-10" />
               </div>
               <div className="space-y-1.5" id="login-titles">
                 <h2 className="text-3xl font-black text-slate-950 uppercase tracking-tight">SECURE CIVIC PORTAL</h2>
@@ -250,13 +274,16 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between" id="header-content">
           
           {/* Logo & Title */}
-          <div className="flex items-baseline gap-2.5" id="header-brand">
-            <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-white uppercase" id="brand-title">
-              {t.title}
-            </h1>
-            <span className="text-emerald-200 text-xs md:text-sm font-bold uppercase tracking-widest hidden sm:inline" id="brand-tagline">
-              {t.tagline}
-            </span>
+          <div className="flex items-center gap-3.5" id="header-brand">
+            <InteractiveLogo size="sm" className="bg-white/95 rounded-xl p-1 shadow-md border-2 border-emerald-300 shrink-0" />
+            <div className="flex items-baseline gap-2.5">
+              <h1 className="text-3xl md:text-4xl font-black tracking-tighter text-white uppercase" id="brand-title">
+                {t.title}
+              </h1>
+              <span className="text-emerald-200 text-xs md:text-sm font-bold uppercase tracking-widest hidden sm:inline" id="brand-tagline">
+                {t.tagline}
+              </span>
+            </div>
           </div>
 
           {/* Controls: Language Selection & Role Switcher */}
@@ -470,7 +497,7 @@ export default function App() {
                     </div>
                     <div className="text-right min-w-[80px]" id="public-resolved-stat">
                       <div className="text-3xl font-black text-emerald-900 leading-none">
-                        {issues.filter(i => i.status === 'Resolved').length}
+                        {personalIssues.filter(i => i.status === 'Resolved').length}
                       </div>
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-1">
                         {t.resolved}
@@ -479,7 +506,11 @@ export default function App() {
                   </div>
 
                   <p className="text-xs font-bold text-slate-500 leading-relaxed" id="public-feed-subtitle">
-                    Transparency feed showing all recently reported public service issues across the village. Verify if your issue is already listed.
+                    {language === 'en' 
+                      ? 'Secure dashboard tracking your reported issues and their live status.' 
+                      : language === 'te' 
+                        ? 'మీరు నివేదించిన సమస్యలు మరియు వాటి లైవ్ స్థితిని ట్రాక్ చేసే సురక్షిత డాష్‌బోర్డ్.' 
+                        : 'आपके द्वारा रिपोर्ट की गई समस्याओं और उनकी लाइव स्थिति को ट्रैक करने वाला सुरक्षित डैशबोर्ड।'}
                   </p>
 
                   {/* Search and Category Filter Section */}
@@ -548,8 +579,40 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Conditional Village & City Name search filters for Transportation Request */}
+                    {publicCategoryFilter === 'Transportation Request' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-3 border-t-2 border-slate-100" id="transportation-filters">
+                        <div className="space-y-1.5" id="village-filter-box">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                            {t.filterByVillage}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={t.villageNamePlaceholder}
+                            value={publicVillageQuery}
+                            onChange={(e) => setPublicVillageQuery(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-800 transition-colors placeholder-slate-400"
+                            id="feed-village-search-input"
+                          />
+                        </div>
+                        <div className="space-y-1.5" id="city-filter-box">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                            {t.filterByCity}
+                          </label>
+                          <input
+                            type="text"
+                            placeholder={t.cityNamePlaceholder}
+                            value={publicCityQuery}
+                            onChange={(e) => setPublicCityQuery(e.target.value)}
+                            className="w-full px-3 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-800 transition-colors placeholder-slate-400"
+                            id="feed-city-search-input"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Clear all active filters indicator */}
-                    {(publicSearchQuery || publicCategoryFilter) && (
+                    {(publicSearchQuery || publicCategoryFilter || publicVillageQuery || publicCityQuery) && (
                       <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px] font-bold text-slate-400" id="filter-active-indicator">
                         <span className="uppercase">Filters active: {filteredPublicIssues.length} found</span>
                         <button
@@ -557,6 +620,8 @@ export default function App() {
                           onClick={() => {
                             setPublicSearchQuery('');
                             setPublicCategoryFilter('');
+                            setPublicVillageQuery('');
+                            setPublicCityQuery('');
                           }}
                           className="text-emerald-800 hover:text-emerald-900 font-black uppercase hover:underline flex items-center gap-1 cursor-pointer"
                           id="btn-clear-filters"
@@ -567,9 +632,15 @@ export default function App() {
                     )}
                   </div>
                   
-                  {issues.length === 0 ? (
+                  {personalIssues.length === 0 ? (
                     <div className="bg-white border-2 border-slate-200 rounded-2xl p-10 text-center text-slate-400" id="public-feed-empty">
-                      <p className="text-xs font-black uppercase tracking-wider text-slate-500">No issues reported in the village yet. Be the first!</p>
+                      <p className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        {language === 'en' 
+                          ? 'You have not reported any issues yet.' 
+                          : language === 'te' 
+                            ? 'మీరు ఇంకా ఎలాంటి సమస్యలను నివేదించలేదు.' 
+                            : 'आपने अभी तक कोई समस्या रिपोर्ट नहीं की है।'}
+                      </p>
                     </div>
                   ) : filteredPublicIssues.length === 0 ? (
                     <div className="bg-white border-2 border-slate-200 rounded-2xl p-10 text-center text-slate-400" id="public-feed-no-results">

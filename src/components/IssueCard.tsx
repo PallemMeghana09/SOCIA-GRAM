@@ -10,6 +10,7 @@ import { CategoryIcon } from './CategoryIcon';
 import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { updateDoc, doc, Timestamp } from 'firebase/firestore';
 import { formatDate, compressImage } from '../utils';
+import { MapSelector } from './MapSelector';
 import { 
   MapPin, 
   ExternalLink, 
@@ -40,6 +41,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, language, isAdminVi
   const [isPhotoExpanded, setIsPhotoExpanded] = useState(false);
   const [isResPhotoExpanded, setIsResPhotoExpanded] = useState(false);
   const [showStatusEditor, setShowStatusEditor] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   
   // Status editing states (for Admin Mode)
   const [newStatus, setNewStatus] = useState<Issue['status']>(issue.status);
@@ -172,12 +174,19 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, language, isAdminVi
 
           {/* Transportation Request Details */}
           {issue.reportType === 'transport' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-blue-50/40 p-3.5 rounded-xl border-2 border-blue-100/60 text-xs" id="card-transport-details">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-blue-50/40 p-3.5 rounded-xl border-2 border-blue-100/60 text-xs" id="card-transport-details">
               <div className="flex items-center gap-2" id="transport-village-name">
                 <Bus className="w-4 h-4 text-blue-700 shrink-0" />
                 <span>
                   <strong className="font-black text-[10px] uppercase tracking-wider text-slate-400 block">{t.villageNameLabel}</strong>
                   <span className="font-black text-slate-800 text-sm">{issue.villageName}</span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2" id="transport-city-name">
+                <span className="w-4 h-4 text-blue-700 font-bold shrink-0 text-center flex items-center justify-center">🏙️</span>
+                <span>
+                  <strong className="font-black text-[10px] uppercase tracking-wider text-slate-400 block">{t.cityNameLabel}</strong>
+                  <span className="font-black text-slate-800 text-sm">{issue.cityName || 'N/A'}</span>
                 </span>
               </div>
               <div className="flex items-center gap-2" id="transport-pincode">
@@ -215,13 +224,24 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, language, isAdminVi
               <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>{formatDate(issue.createdAt)}</span>
             </div>
-            <div className="flex items-center justify-between sm:justify-start gap-1.5" id="card-maps-box">
+            <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5" id="card-maps-box">
               <span className="font-mono text-[10px] text-slate-400 font-bold">({issue.latitude.toFixed(4)}, {issue.longitude.toFixed(4)})</span>
+              
+              <button
+                type="button"
+                onClick={() => setShowMap(!showMap)}
+                className="text-emerald-850 font-black uppercase tracking-tight hover:text-emerald-950 inline-flex items-center gap-1 text-[11px] cursor-pointer bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md transition-colors"
+                id="btn-toggle-inline-map"
+              >
+                <MapPin className="w-3 h-3" />
+                <span>{showMap ? 'Hide Map' : 'Show Map'}</span>
+              </button>
+
               <a 
                 href={`https://www.google.com/maps/search/?api=1&query=${issue.latitude},${issue.longitude}`}
                 target="_blank"
                 rel="noreferrer referrer"
-                className="text-emerald-900 font-black uppercase tracking-tight hover:underline inline-flex items-center gap-0.5 ml-1 text-[11px]"
+                className="text-slate-500 hover:text-emerald-900 font-black uppercase tracking-tight hover:underline inline-flex items-center gap-0.5 text-[11px]"
                 id="btn-maps-link"
               >
                 {t.viewOnMap}
@@ -229,6 +249,18 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, language, isAdminVi
               </a>
             </div>
           </div>
+
+          {/* Collapsible Inline Map */}
+          {showMap && (
+            <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200" id="card-inline-map">
+              <MapSelector
+                latitude={issue.latitude}
+                longitude={issue.longitude}
+                readOnly={true}
+                height="220px"
+              />
+            </div>
+          )}
 
           {/* Reporter Details (Only if present) */}
           {(issue.reporterName || issue.reporterPhone || issue.aadhaarNumber) && (

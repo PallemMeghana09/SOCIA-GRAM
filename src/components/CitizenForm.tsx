@@ -8,7 +8,8 @@ import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { setDoc, doc, Timestamp } from 'firebase/firestore';
 import { translations } from '../translations';
 import { Language } from '../types';
-import { compressImage, generateId } from '../utils';
+import { compressImage, generateId, playTungSound } from '../utils';
+import { MapSelector } from './MapSelector';
 import { 
   Camera, 
   MapPin, 
@@ -45,6 +46,7 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
   const [reporterPhone, setReporterPhone] = useState('');
   const [aadhaarNumber, setAadhaarNumber] = useState('');
   const [villageName, setVillageName] = useState('');
+  const [cityName, setCityName] = useState('');
   const [pinCode, setPinCode] = useState('');
 
   // UI States
@@ -69,16 +71,86 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
   }, [auth.currentUser]);
 
   const detectLocation = () => {
-    if (!navigator.geolocation) {
-      setLocationStatus('error');
-      return;
-    }
-
     setLoadingLocation(true);
     setLocationStatus('idle');
 
+    const fallbackToIPGeo = async () => {
+      console.log('Attempting IP Geolocation fallback...');
+      try {
+        const res = await fetch('https://freeipapi.com/api/json');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude && data.longitude) {
+            setLatitude(Number(Number(data.latitude).toFixed(6)));
+            setLongitude(Number(Number(data.longitude).toFixed(6)));
+            if (data.cityName && !cityName) {
+              setCityName(data.cityName);
+            }
+            if (data.zipCode && !pinCode) {
+              setPinCode(data.zipCode);
+            }
+            setLandmarkNote(`Approx: ${data.cityName || 'Local Area'} (IP Detected)`);
+            setLocationStatus('success');
+            setLoadingLocation(false);
+            return true;
+          }
+        }
+      } catch (err) {
+        console.warn('freeipapi fallback failed, trying ipapi.co...', err);
+      }
+
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.latitude && data.longitude) {
+            setLatitude(Number(Number(data.latitude).toFixed(6)));
+            setLongitude(Number(Number(data.longitude).toFixed(6)));
+            if (data.city && !cityName) {
+              setCityName(data.city);
+            }
+            if (data.postal && !pinCode) {
+              setPinCode(data.postal);
+            }
+            setLandmarkNote(`Approx: ${data.city || 'Local Area'} (IP Detected)`);
+            setLocationStatus('success');
+            setLoadingLocation(false);
+            return true;
+          }
+        }
+      } catch (err) {
+        console.warn('ipapi.co fallback failed...', err);
+      }
+
+      console.log('Falling back to default coordinates.');
+      setLatitude(17.385044);
+      setLongitude(78.486671);
+      if (!cityName) setCityName('Hyderabad');
+      if (!pinCode) setPinCode('500001');
+      setLandmarkNote('Auto-Set (Default Center Coordinates)');
+      setLocationStatus('success');
+      setLoadingLocation(false);
+      return true;
+    };
+
+    if (!navigator.geolocation) {
+      fallbackToIPGeo();
+      return;
+    }
+
+    let handled = false;
+    const timeoutId = setTimeout(() => {
+      if (!handled) {
+        handled = true;
+        fallbackToIPGeo();
+      }
+    }, 3500);
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (handled) return;
+        handled = true;
+        clearTimeout(timeoutId);
         setLatitude(Number(position.coords.latitude.toFixed(6)));
         setLongitude(Number(position.coords.longitude.toFixed(6)));
         setLocationStatus('success');
@@ -86,10 +158,12 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
       },
       (error) => {
         console.warn('Geolocation error:', error);
-        setLocationStatus('error');
-        setLoadingLocation(false);
+        if (handled) return;
+        handled = true;
+        clearTimeout(timeoutId);
+        fallbackToIPGeo();
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
     );
   };
 
@@ -123,6 +197,16 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
             : language === 'te' 
               ? 'రవాణా అభ్యర్థనల కోసం గ్రామం పేరు తప్పనిసరి.' 
               : 'परिवहन अनुरोधों के लिए गाँव का नाम आवश्यक है।'
+        );
+        return;
+      }
+      if (!cityName.trim()) {
+        setErrorMsg(
+          language === 'en' 
+            ? 'City/Town Name is required for transportation requests.' 
+            : language === 'te' 
+              ? 'రవాణా అభ్యర్థనల కోసం నగరం/పట్టణం పేరు తప్పనిసరి.' 
+              : 'परिवहन अनुरोधों के लिए शहर/नगर का नाम आवश्यक है।'
         );
         return;
       }
@@ -188,6 +272,7 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
       category: reportType === 'transport' ? 'Transportation Request' : category,
       reportType,
       villageName: reportType === 'transport' ? villageName.trim() : '',
+      cityName: reportType === 'transport' ? cityName.trim() : '',
       pinCode: reportType === 'transport' ? pinCode.trim() : '',
       description: description.trim(),
       photoUrl: photo,
@@ -216,7 +301,11 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
       setReporterPhone('');
       setAadhaarNumber('');
       setVillageName('');
+      setCityName('');
       setPinCode('');
+      
+      // Play premium success tone
+      playTungSound();
       
       onSuccess(complaintId);
     } catch (err: any) {
@@ -319,7 +408,7 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
 
       {/* Conditional Fields based on Report Type */}
       {reportType === 'transport' ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" id="transport-fields-section">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" id="transport-fields-section">
           <div className="space-y-2">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.villageNameLabel} *</label>
             <input
@@ -330,6 +419,19 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
               placeholder={t.villageNamePlaceholder}
               value={villageName}
               onChange={(e) => setVillageName(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-800 focus:ring-0 outline-none text-slate-800 text-sm placeholder-slate-400 font-bold"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.cityNameLabel} *</label>
+            <input
+              type="text"
+              id="txt-city-name"
+              required
+              maxLength={150}
+              placeholder={t.cityNamePlaceholder}
+              value={cityName}
+              onChange={(e) => setCityName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-emerald-800 focus:ring-0 outline-none text-slate-800 text-sm placeholder-slate-400 font-bold"
             />
           </div>
@@ -527,6 +629,21 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Interactive OpenStreetMap Map */}
+        {latitude !== null && longitude !== null && (
+          <div className="pt-2" id="interactive-gps-map-container">
+            <MapSelector
+              latitude={latitude}
+              longitude={longitude}
+              onChange={(newLat, newLng) => {
+                setLatitude(newLat);
+                setLongitude(newLng);
+              }}
+              height="280px"
+            />
           </div>
         )}
 

@@ -24,6 +24,7 @@ export interface Issue {
   updatedAt: Timestamp;
   reportType?: 'civic' | 'transport';
   villageName?: string;
+  cityName?: string;
   pinCode?: string;
 }
 
