@@ -49,6 +49,65 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
   const [cityName, setCityName] = useState('');
   const [pinCode, setPinCode] = useState('');
 
+  // Image Recognition / Validation States
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false);
+  const [imageAnalysisResult, setImageAnalysisResult] = useState<{ isValid: boolean; reason: string } | null>(null);
+
+  useEffect(() => {
+    // If there is no photo, we reset the analysis result
+    if (!photo) {
+      setImageAnalysisResult(null);
+      return;
+    }
+
+    // For 'civic' reportType, we need a selected category to validate.
+    if (reportType === 'civic' && !category) {
+      setImageAnalysisResult(null);
+      return;
+    }
+
+    const triggerValidation = async () => {
+      setIsAnalyzingImage(true);
+      setImageAnalysisResult(null);
+      try {
+        const response = await fetch('/api/validate-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            category: reportType === 'transport' ? 'Transportation Request' : category,
+            photoUrl: photo,
+            reportType,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setImageAnalysisResult({
+            isValid: data.isValid,
+            reason: data.reason,
+          });
+        } else {
+          setImageAnalysisResult({
+            isValid: true,
+            reason: 'Image approved (validation service connection bypassed).',
+          });
+        }
+      } catch (err) {
+        console.error('Image validation failed:', err);
+        setImageAnalysisResult({
+          isValid: true,
+          reason: 'Image approved (validation service error bypassed).',
+        });
+      } finally {
+        setIsAnalyzingImage(false);
+      }
+    };
+
+    triggerValidation();
+  }, [photo, category, reportType]);
+
   // UI States
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -246,6 +305,28 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
         reportType === 'transport'
           ? (language === 'en' ? 'Photo of the Village Name Board is required.' : language === 'te' ? 'గ్రామ పేరు బోర్డు ఫోటో తప్పనిసరి.' : 'गाँव के नाम बोर्ड की फोटो आवश्यक है।')
           : t.photoEvidence
+      );
+      return;
+    }
+
+    if (isAnalyzingImage) {
+      setErrorMsg(
+        language === 'en' 
+          ? 'Please wait, AI is still verifying your photo category...' 
+          : language === 'te' 
+            ? 'దయచేసి వేచి ఉండండి, AI ఇంకా మీ ఫోటో వర్గాన్ని ధృవీకరిస్తోంది...' 
+            : 'कृपया प्रतीक्षा करें, AI अभी भी आपकी फोटो श्रेणी की पुष्टि कर रहा है...'
+      );
+      return;
+    }
+
+    if (imageAnalysisResult && !imageAnalysisResult.isValid) {
+      setErrorMsg(
+        language === 'en'
+          ? `Selected image does not match "${reportType === 'transport' ? 'Transportation Request' : category}". Please upload a matching photo or select the correct category.`
+          : language === 'te'
+            ? `ఎంచుకున్న చిత్రం "${reportType === 'transport' ? 'Transportation Request' : category}" కు సరిపోలడం లేదు. దయచేసి సరిపోలే ఫోటోను అప్‌లోడ్ చేయండి లేదా సరైన వర్గాన్ని ఎంచుకోండి.`
+            : `चुनी गई छवि "${reportType === 'transport' ? 'Transportation Request' : category}" से मेल नहीं खाती। कृपया एक उपयुक्त फोटो अपलोड करें या सही श्रेणी चुनें।`
       );
       return;
     }
@@ -552,6 +633,36 @@ export const CitizenForm: React.FC<CitizenFormProps> = ({ language, onSuccess, u
             className="hidden"
           />
         </div>
+        {/* Image Recognition/Validation Status Overlay */}
+        {photo && (
+          <div className="mt-2.5 rounded-xl border p-3 flex flex-col gap-1.5 text-xs transition-all duration-300" id="image-validation-status">
+            {isAnalyzingImage ? (
+              <div className="flex items-center gap-2 text-emerald-950 font-bold" id="validating-loader">
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-700" />
+                <span>AI is validating your photo for Category match...</span>
+              </div>
+            ) : imageAnalysisResult ? (
+              imageAnalysisResult.isValid ? (
+                <div className="flex items-start gap-2 text-emerald-900 font-bold bg-emerald-50/60 p-2 rounded-lg border border-emerald-200/50" id="validation-success">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="block font-black uppercase tracking-wider text-[8px] text-emerald-700 mb-0.5">✓ Image Validated</span>
+                    <span className="text-[11px] leading-snug">{imageAnalysisResult.reason}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-rose-900 font-bold bg-rose-50/60 p-2 rounded-lg border border-rose-200/50" id="validation-failure">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="block font-black uppercase tracking-wider text-[8px] text-rose-700 mb-0.5">⚠ Verification Mismatch</span>
+                    <span className="text-[11px] leading-snug">{imageAnalysisResult.reason}</span>
+                    <span className="block text-[10px] text-rose-700/80 mt-1">Please select the correct category or upload a relevant photo.</span>
+                  </div>
+                </div>
+              )
+            ) : null}
+          </div>
+        )}
       </div>
 
       {/* Geolocation Section */}
