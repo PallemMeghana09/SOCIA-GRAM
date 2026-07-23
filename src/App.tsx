@@ -57,6 +57,8 @@ export default function App() {
   const [publicCategoryFilter, setPublicCategoryFilter] = useState<string>('');
   const [publicVillageQuery, setPublicVillageQuery] = useState<string>('');
   const [publicCityQuery, setPublicCityQuery] = useState<string>('');
+  const [personalSortOrder, setPersonalSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [publicSortOrder, setPublicSortOrder] = useState<'newest' | 'oldest'>('newest');
 
   const t = translations[language];
 
@@ -141,6 +143,32 @@ export default function App() {
       (issue.cityName && issue.cityName.toLowerCase().includes(publicCityQuery.trim().toLowerCase()));
 
     return matchesCategory && matchesKeyword && matchesVillage && matchesCity;
+  });
+
+  // Helper to extract timestamp numeric value
+  const getIssueTime = (issue: Issue) => {
+    if (!issue.createdAt) return 0;
+    if (typeof issue.createdAt.toMillis === 'function') {
+      return issue.createdAt.toMillis();
+    }
+    if (issue.createdAt.seconds) {
+      return issue.createdAt.seconds * 1000;
+    }
+    return 0;
+  };
+
+  // Sorted list for personal tracking section
+  const sortedPersonalIssues = [...personalIssues].sort((a, b) => {
+    const timeA = getIssueTime(a);
+    const timeB = getIssueTime(b);
+    return personalSortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+  });
+
+  // Sorted list for public feed section
+  const sortedPublicIssues = [...filteredPublicIssues].sort((a, b) => {
+    const timeA = getIssueTime(a);
+    const timeB = getIssueTime(b);
+    return publicSortOrder === 'newest' ? timeB - timeA : timeA - timeB;
   });
 
   if (showSplash) {
@@ -461,9 +489,27 @@ export default function App() {
                   ) : (
                     /* Track complaints reported from this device */
                     <div className="space-y-6" id="personal-reports-container">
-                      <div className="border-b-2 border-slate-200 pb-3" id="personal-track-header">
-                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest leading-none">MY PORTAL</h2>
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-[0.9] mt-1">{t.trackTitle}</h2>
+                      <div className="border-b-2 border-slate-200 pb-3 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3" id="personal-track-header">
+                        <div>
+                          <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest leading-none">MY PORTAL</h2>
+                          <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase leading-[0.9] mt-1">{t.trackTitle}</h2>
+                        </div>
+                        {personalIssues.length > 0 && (
+                          <div className="flex items-center gap-2 self-start sm:self-end" id="personal-sort-container">
+                            <label htmlFor="personal-sort-select" className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                              {t.sortBy}:
+                            </label>
+                            <select
+                              id="personal-sort-select"
+                              value={personalSortOrder}
+                              onChange={(e) => setPersonalSortOrder(e.target.value as 'newest' | 'oldest')}
+                              className="bg-white border-2 border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-emerald-800 transition-colors shadow-sm cursor-pointer"
+                            >
+                              <option value="newest">{t.newest}</option>
+                              <option value="oldest">{t.oldest}</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                       {personalIssues.length === 0 ? (
                         <div className="bg-white border-2 border-slate-200 rounded-2xl p-10 text-center text-slate-400" id="personal-reports-empty">
@@ -471,7 +517,7 @@ export default function App() {
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 gap-4" id="personal-reports-list">
-                          {personalIssues.map((issue) => (
+                          {sortedPersonalIssues.map((issue) => (
                             <IssueCard 
                               key={issue.id} 
                               issue={issue} 
@@ -516,26 +562,46 @@ export default function App() {
                   {/* Search and Category Filter Section */}
                   <div className="bg-white border-2 border-slate-200 rounded-2xl p-4 space-y-3.5 shadow-sm" id="public-feed-search-filter">
                     
-                    {/* Search Input */}
-                    <div className="relative" id="feed-search-container">
-                      <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder={t.searchPlaceholder}
-                        value={publicSearchQuery}
-                        onChange={(e) => setPublicSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-800 transition-colors placeholder-slate-400"
-                        id="feed-search-input"
-                      />
-                      {publicSearchQuery && (
-                        <button
-                          onClick={() => setPublicSearchQuery('')}
-                          className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                          id="feed-search-clear"
-                          title="Clear search"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                    {/* Search & Sort Row */}
+                    <div className="flex flex-col sm:flex-row gap-2" id="feed-search-sort-row">
+                      <div className="relative flex-grow" id="feed-search-container">
+                        <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder={t.searchPlaceholder}
+                          value={publicSearchQuery}
+                          onChange={(e) => setPublicSearchQuery(e.target.value)}
+                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-800 transition-colors placeholder-slate-400"
+                          id="feed-search-input"
+                        />
+                        {publicSearchQuery && (
+                          <button
+                            onClick={() => setPublicSearchQuery('')}
+                            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                            id="feed-search-clear"
+                            title="Clear search"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Sort Dropdown */}
+                      {personalIssues.length > 0 && (
+                        <div className="flex items-center gap-2 shrink-0 bg-slate-50 border-2 border-slate-200 rounded-xl px-3 py-1.5 sm:py-0" id="feed-sort-container">
+                          <label htmlFor="feed-sort-select" className="text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                            {t.sortBy}:
+                          </label>
+                          <select
+                            id="feed-sort-select"
+                            value={publicSortOrder}
+                            onChange={(e) => setPublicSortOrder(e.target.value as 'newest' | 'oldest')}
+                            className="bg-transparent border-0 text-xs font-bold text-slate-700 outline-none cursor-pointer py-1"
+                          >
+                            <option value="newest" className="bg-white">{t.newest}</option>
+                            <option value="oldest" className="bg-white">{t.oldest}</option>
+                          </select>
+                        </div>
                       )}
                     </div>
 
@@ -659,7 +725,7 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4" id="public-feed-list">
-                      {filteredPublicIssues.map((issue) => (
+                      {sortedPublicIssues.map((issue) => (
                         <IssueCard 
                           key={issue.id} 
                           issue={issue} 
@@ -682,7 +748,7 @@ export default function App() {
         <div className="max-w-5xl mx-auto px-4 space-y-1.5" id="footer-content">
           <p className="font-black text-emerald-950 uppercase tracking-widest" id="footer-logo">Socia Gram — Village Public Service & Infrastructure Reporting Platform</p>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1" id="footer-copyright">© 2026 Local Village Governance Secretariat. Secure Public Portal.</p>
-          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mt-1" id="footer-developer">Developed by — P.Meghana</p>
+          <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest mt-1" id="footer-developer">Developed by — P.Meghana & P.RUP ANAND</p>
         </div>
       </footer>
 

@@ -84,7 +84,10 @@ export const translations = {
     photoVillageNameBoard: "Photo of Village Name Board",
     transportDescPlaceholder: "Enter details of transportation issues, requested bus routes, timings, or frequency...",
     filterByVillage: "Filter by Village Name",
-    filterByCity: "Filter by City Name"
+    filterByCity: "Filter by City Name",
+    sortBy: "Sort By",
+    newest: "Newest First",
+    oldest: "Oldest First"
   },
   te: {
     title: "సోషియా గ్రామ్",
@@ -166,7 +169,10 @@ export const translations = {
     photoVillageNameBoard: "గ్రామ పేరు బోర్డు ఫోటో",
     transportDescPlaceholder: "రవాణా సమస్యలు, కోరిన బస్సు రూట్లు, వేళలు లేదా బస్సుల సంఖ్య వంటి వివరాలను నమోదు చేయండి...",
     filterByVillage: "గ్రామం పేరుతో వడపోత",
-    filterByCity: "నగరం పేరుతో వడపోత"
+    filterByCity: "నగరం పేరుతో వడపోత",
+    sortBy: "క్రమబద్ధీకరించు",
+    newest: "కొత్తవి మొదట",
+    oldest: "పాతవి మొదట"
   },
   hi: {
     title: "सोशिया ग्राम",
@@ -248,6 +254,9 @@ export const translations = {
     photoVillageNameBoard: "गाँव के नाम बोर्ड की फोटो",
     transportDescPlaceholder: "परिवहन समस्याओं, अनुरोधित बस मार्गों, समय या आवृत्तियों का विवरण दर्ज करें...",
     filterByVillage: "गाँव के नाम से फ़िल्टर करें",
-    filterByCity: "शहर के नाम से फ़िल्टर करें"
+    filterByCity: "शहर के नाम से फ़िल्टर करें",
+    sortBy: "क्रमबद्ध करें",
+    newest: "नवीनतम पहले",
+    oldest: "सबसे पुराने पहले"
   }
 };
